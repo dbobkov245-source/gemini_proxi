@@ -28,9 +28,9 @@ async function proxyRequest(req: NextRequest, path: string[], method: string) {
   const googleUrl = new URL(`${GOOGLE_BASE}/${path.join('/')}`)
   googleUrl.searchParams.set('key', GEMINI_API_KEY)
   // Forward any extra query params (like alt=sse) except our auth key
-  for (const [k, v] of req.nextUrl.searchParams.entries()) {
+  req.nextUrl.searchParams.forEach((v, k) => {
     if (k !== 'key') googleUrl.searchParams.set(k, v)
-  }
+  })
 
   try {
     const body = method === 'POST' ? await req.text() : undefined
