@@ -17,6 +17,17 @@ function checkSecret(req: NextRequest): boolean {
   )
 }
 
+// Parse retry-after delay from Gemini 429 response body (seconds)
+async function parseRetryAfter(response: Response): Promise<number> {
+  try {
+    const text = await response.text()
+    // Gemini returns: "Please retry in 12.834193377s"
+    const match = text.match(/retry in ([\d.]+)s/i)
+    if (match) return Math.ceil(parseFloat(match[1])) + 1
+  } catch {}
+  return 15 // default 15s if can't parse
+}
+
 async function proxyRequest(req: NextRequest, path: string[], method: string) {
   if (!checkSecret(req)) return unauthorized()
 
@@ -35,11 +46,26 @@ async function proxyRequest(req: NextRequest, path: string[], method: string) {
   try {
     const body = method === 'POST' ? await req.text() : undefined
 
-    const response = await fetch(googleUrl.toString(), {
+    // First attempt
+    let response = await fetch(googleUrl.toString(), {
       method,
       headers: { 'Content-Type': 'application/json' },
       body,
     })
+
+    // If rate limited (429), wait the suggested delay and retry once
+    if (response.status === 429) {
+      const waitSec = await parseRetryAfter(response)
+      console.log(`[proxy] 429 rate limit — waiting ${waitSec}s before retry`)
+      await new Promise(resolve => setTimeout(resolve, waitSec * 1000))
+
+      response = await fetch(googleUrl.toString(), {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+      console.log(`[proxy] retry result: ${response.status}`)
+    }
 
     // Stream the response body through directly (supports SSE and large responses)
     const responseHeaders: Record<string, string> = {}
