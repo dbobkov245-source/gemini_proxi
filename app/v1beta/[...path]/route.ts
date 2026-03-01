@@ -18,30 +18,37 @@ function checkSecret(req: NextRequest): boolean {
 }
 
 async function proxyRequest(req: NextRequest, path: string[], method: string) {
-  console.log(`[proxy] ${method} /${path.join('/')} auth=${checkSecret(req) ? 'ok' : 'FAIL'} header=${!!req.headers.get('x-goog-api-key')} query=${!!req.nextUrl.searchParams.get('key')}`)
-
   if (!checkSecret(req)) return unauthorized()
 
   if (!GEMINI_API_KEY) {
     return NextResponse.json({ error: 'Not configured' }, { status: 500 })
   }
 
-  const googleUrl = `${GOOGLE_BASE}/${path.join('/')}?key=${GEMINI_API_KEY}`
+  // Preserve ?alt=sse and other query params from the original request
+  const googleUrl = new URL(`${GOOGLE_BASE}/${path.join('/')}`)
+  googleUrl.searchParams.set('key', GEMINI_API_KEY)
+  // Forward any extra query params (like alt=sse) except our auth key
+  for (const [k, v] of req.nextUrl.searchParams.entries()) {
+    if (k !== 'key') googleUrl.searchParams.set(k, v)
+  }
 
   try {
     const body = method === 'POST' ? await req.text() : undefined
 
-    const response = await fetch(googleUrl, {
+    const response = await fetch(googleUrl.toString(), {
       method,
       headers: { 'Content-Type': 'application/json' },
       body,
     })
 
-    const responseBody = await response.text()
-    console.log(`[proxy] response status=${response.status} len=${responseBody.length}`)
-    return new Response(responseBody, {
+    // Stream the response body through directly (supports SSE and large responses)
+    const responseHeaders: Record<string, string> = {}
+    const ct = response.headers.get('Content-Type')
+    if (ct) responseHeaders['Content-Type'] = ct
+
+    return new Response(response.body, {
       status: response.status,
-      headers: { 'Content-Type': response.headers.get('Content-Type') ?? 'application/json' },
+      headers: responseHeaders,
     })
   } catch (err) {
     console.error(`[proxy] error:`, err)
