@@ -11,7 +11,10 @@ function unauthorized() {
 
 function checkSecret(req: NextRequest): boolean {
   if (!PROXY_SECRET) return false
-  return req.nextUrl.searchParams.get('key') === PROXY_SECRET
+  return (
+    req.nextUrl.searchParams.get('key') === PROXY_SECRET ||
+    req.headers.get('x-goog-api-key') === PROXY_SECRET
+  )
 }
 
 async function proxyRequest(req: NextRequest, path: string[], method: string) {
