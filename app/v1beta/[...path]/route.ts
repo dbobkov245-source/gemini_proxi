@@ -35,7 +35,7 @@ async function proxyRequest(req: NextRequest, path: string[], method: string) {
     const responseBody = await response.text()
     return new Response(responseBody, {
       status: response.status,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': response.headers.get('Content-Type') ?? 'application/json' },
     })
   } catch {
     return NextResponse.json({ error: 'Proxy error' }, { status: 500 })
