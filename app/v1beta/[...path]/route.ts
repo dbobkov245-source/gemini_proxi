@@ -54,17 +54,21 @@ async function proxyRequest(req: NextRequest, path: string[], method: string) {
     })
 
     // If rate limited (429), wait the suggested delay and retry once
+    // Only retry if the wait is short enough (≤ 25s) to avoid OpenClaw timeouts
     if (response.status === 429) {
       const waitSec = await parseRetryAfter(response)
-      console.log(`[proxy] 429 rate limit — waiting ${waitSec}s before retry`)
-      await new Promise(resolve => setTimeout(resolve, waitSec * 1000))
-
-      response = await fetch(googleUrl.toString(), {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      })
-      console.log(`[proxy] retry result: ${response.status}`)
+      if (waitSec <= 25) {
+        console.log(`[proxy] 429 rate limit — waiting ${waitSec}s before retry`)
+        await new Promise(resolve => setTimeout(resolve, waitSec * 1000))
+        response = await fetch(googleUrl.toString(), {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        })
+        console.log(`[proxy] retry result: ${response.status}`)
+      } else {
+        console.log(`[proxy] 429 rate limit — wait too long (${waitSec}s), passing through`)
+      }
     }
 
     // Stream the response body through directly (supports SSE and large responses)
