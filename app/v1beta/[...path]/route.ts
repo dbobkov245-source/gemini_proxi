@@ -18,6 +18,8 @@ function checkSecret(req: NextRequest): boolean {
 }
 
 async function proxyRequest(req: NextRequest, path: string[], method: string) {
+  console.log(`[proxy] ${method} /${path.join('/')} auth=${checkSecret(req) ? 'ok' : 'FAIL'} header=${!!req.headers.get('x-goog-api-key')} query=${!!req.nextUrl.searchParams.get('key')}`)
+
   if (!checkSecret(req)) return unauthorized()
 
   if (!GEMINI_API_KEY) {
@@ -36,11 +38,13 @@ async function proxyRequest(req: NextRequest, path: string[], method: string) {
     })
 
     const responseBody = await response.text()
+    console.log(`[proxy] response status=${response.status} len=${responseBody.length}`)
     return new Response(responseBody, {
       status: response.status,
       headers: { 'Content-Type': response.headers.get('Content-Type') ?? 'application/json' },
     })
-  } catch {
+  } catch (err) {
+    console.error(`[proxy] error:`, err)
     return NextResponse.json({ error: 'Proxy error' }, { status: 500 })
   }
 }
