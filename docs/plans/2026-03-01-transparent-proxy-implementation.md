@@ -272,7 +272,7 @@ Check `https://github.com/bobbiclow/gemini-proxy` — confirm commits visible.
 
 | Name | Value |
 |---|---|
-| `GEMINI_API_KEY` | `AIzaSyDhM7mjGzD2B1p05prKBCmoR1ntvoTRnEk` |
+| `GEMINI_API_KEY` | your Google Gemini API key |
 | `PROXY_SECRET` | (choose a strong random string, e.g. 32 hex chars) |
 
 **Step 3:** Trigger deploy (or it auto-deploys on push)
