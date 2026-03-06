@@ -32,9 +32,12 @@ function checkSecret(req: NextRequest): boolean {
 async function parseRetryAfter(response: Response): Promise<number> {
   try {
     const text = await response.text()
-    // Gemini returns: "Please retry in 12.834193377s"
-    const match = text.match(/retry in ([\d.]+)s/i)
-    if (match) return Math.ceil(parseFloat(match[1])) + 1
+    // Format 1: "Please retry in 12.834193377s"
+    const matchText = text.match(/retry in ([\d.]+)s/i)
+    if (matchText) return Math.ceil(parseFloat(matchText[1])) + 1
+    // Format 2: JSON {"details":[{"retryDelay":"22s"}]}
+    const matchJson = text.match(/"retryDelay"\s*:\s*"([\d.]+)s"/)
+    if (matchJson) return Math.ceil(parseFloat(matchJson[1])) + 1
   } catch {}
   return 15 // default 15s if can't parse
 }
@@ -56,7 +59,7 @@ async function proxyRequest(req: NextRequest, path: string[], method: string) {
     const body = method === 'POST' ? await req.text() : undefined
 
     // Try each key in order — on 429, move to next key immediately
-    let last429: Response | null = null
+    const responses429: Response[] = []
     for (let i = 0; i < GEMINI_KEYS.length; i++) {
       const url = new URL(googleUrl.toString())
       url.searchParams.set('key', GEMINI_KEYS[i])
@@ -77,33 +80,40 @@ async function proxyRequest(req: NextRequest, path: string[], method: string) {
       }
 
       console.log(`[proxy] key ${i + 1}/${GEMINI_KEYS.length} hit 429, trying next`)
-      last429 = response
+      responses429.push(response)
     }
 
-    // All keys rate-limited — wait suggested delay and retry with key[0] if short enough
-    const waitSec = await parseRetryAfter(last429!.clone())
+    // All keys rate-limited — find shortest retry delay across all keys
+    const waitSecs = await Promise.all(responses429.map(r => parseRetryAfter(r.clone())))
+    const waitSec = Math.min(...waitSecs)
     if (waitSec <= 25) {
-      console.log(`[proxy] all ${GEMINI_KEYS.length} keys 429 — waiting ${waitSec}s before final retry`)
+      console.log(`[proxy] all ${GEMINI_KEYS.length} keys 429 — waiting ${waitSec}s before retry pass`)
       await new Promise(r => setTimeout(r, waitSec * 1000))
-      const url = new URL(googleUrl.toString())
-      url.searchParams.set('key', GEMINI_KEYS[0])
-      const retryResponse = await fetch(url.toString(), {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      })
-      console.log(`[proxy] final retry result: ${retryResponse.status}`)
-      const ct = retryResponse.headers.get('Content-Type')
-      return new Response(retryResponse.body, {
-        status: retryResponse.status,
-        headers: ct ? { 'Content-Type': ct } : {},
-      })
+      // Retry all keys again — some may have recovered (rate-limited vs quota-exhausted)
+      for (let i = 0; i < GEMINI_KEYS.length; i++) {
+        const url = new URL(googleUrl.toString())
+        url.searchParams.set('key', GEMINI_KEYS[i])
+        const retryResponse = await fetch(url.toString(), {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        })
+        console.log(`[proxy] retry key ${i + 1}: ${retryResponse.status}`)
+        if (retryResponse.status !== 429) {
+          const ct = retryResponse.headers.get('Content-Type')
+          return new Response(retryResponse.body, {
+            status: retryResponse.status,
+            headers: ct ? { 'Content-Type': ct } : {},
+          })
+        }
+      }
     }
 
-    // Wait too long — pass through the 429
-    console.log(`[proxy] all keys 429, wait too long (${waitSec}s), passing through`)
-    const ct = last429!.headers.get('Content-Type')
-    return new Response(last429!.body, {
+    // All failed — pass through last 429
+    console.log(`[proxy] all keys still 429 after retry, passing through`)
+    const lastResponse = responses429[responses429.length - 1]
+    const ct = lastResponse.headers.get('Content-Type')
+    return new Response(lastResponse.body, {
       status: 429,
       headers: ct ? { 'Content-Type': ct } : {},
     })
