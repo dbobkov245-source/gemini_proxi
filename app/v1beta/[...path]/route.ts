@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const PROXY_SECRET = process.env.PROXY_SECRET
+
+// Load all available Gemini API keys (up to 8), filter out undefined/empty
+const GEMINI_KEYS: string[] = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_2,
+  process.env.GEMINI_API_KEY_3,
+  process.env.GEMINI_API_KEY_4,
+  process.env.GEMINI_API_KEY_5,
+  process.env.GEMINI_API_KEY_6,
+  process.env.GEMINI_API_KEY_7,
+  process.env.GEMINI_API_KEY_8,
+].filter((k): k is string => Boolean(k))
 
 const GOOGLE_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -31,14 +42,12 @@ async function parseRetryAfter(response: Response): Promise<number> {
 async function proxyRequest(req: NextRequest, path: string[], method: string) {
   if (!checkSecret(req)) return unauthorized()
 
-  if (!GEMINI_API_KEY) {
+  if (GEMINI_KEYS.length === 0) {
     return NextResponse.json({ error: 'Not configured' }, { status: 500 })
   }
 
-  // Preserve ?alt=sse and other query params from the original request
+  // Build base URL, forwarding extra query params (like alt=sse) except our auth key
   const googleUrl = new URL(`${GOOGLE_BASE}/${path.join('/')}`)
-  googleUrl.searchParams.set('key', GEMINI_API_KEY)
-  // Forward any extra query params (like alt=sse) except our auth key
   req.nextUrl.searchParams.forEach((v, k) => {
     if (k !== 'key') googleUrl.searchParams.set(k, v)
   })
@@ -46,39 +55,57 @@ async function proxyRequest(req: NextRequest, path: string[], method: string) {
   try {
     const body = method === 'POST' ? await req.text() : undefined
 
-    // First attempt
-    let response = await fetch(googleUrl.toString(), {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    })
+    // Try each key in order — on 429, move to next key immediately
+    let last429: Response | null = null
+    for (let i = 0; i < GEMINI_KEYS.length; i++) {
+      const url = new URL(googleUrl.toString())
+      url.searchParams.set('key', GEMINI_KEYS[i])
 
-    // If rate limited (429), wait the suggested delay and retry once
-    // Only retry if the wait is short enough (≤ 25s) to avoid OpenClaw timeouts
-    if (response.status === 429) {
-      const waitSec = await parseRetryAfter(response.clone())
-      if (waitSec <= 25) {
-        console.log(`[proxy] 429 rate limit — waiting ${waitSec}s before retry`)
-        await new Promise(resolve => setTimeout(resolve, waitSec * 1000))
-        response = await fetch(googleUrl.toString(), {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body,
+      const response = await fetch(url.toString(), {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+
+      if (response.status !== 429) {
+        if (i > 0) console.log(`[proxy] key ${i + 1}/${GEMINI_KEYS.length} succeeded`)
+        const ct = response.headers.get('Content-Type')
+        return new Response(response.body, {
+          status: response.status,
+          headers: ct ? { 'Content-Type': ct } : {},
         })
-        console.log(`[proxy] retry result: ${response.status}`)
-      } else {
-        console.log(`[proxy] 429 rate limit — wait too long (${waitSec}s), passing through`)
       }
+
+      console.log(`[proxy] key ${i + 1}/${GEMINI_KEYS.length} hit 429, trying next`)
+      last429 = response
     }
 
-    // Stream the response body through directly (supports SSE and large responses)
-    const responseHeaders: Record<string, string> = {}
-    const ct = response.headers.get('Content-Type')
-    if (ct) responseHeaders['Content-Type'] = ct
+    // All keys rate-limited — wait suggested delay and retry with key[0] if short enough
+    const waitSec = await parseRetryAfter(last429!.clone())
+    if (waitSec <= 25) {
+      console.log(`[proxy] all ${GEMINI_KEYS.length} keys 429 — waiting ${waitSec}s before final retry`)
+      await new Promise(r => setTimeout(r, waitSec * 1000))
+      const url = new URL(googleUrl.toString())
+      url.searchParams.set('key', GEMINI_KEYS[0])
+      const retryResponse = await fetch(url.toString(), {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+      console.log(`[proxy] final retry result: ${retryResponse.status}`)
+      const ct = retryResponse.headers.get('Content-Type')
+      return new Response(retryResponse.body, {
+        status: retryResponse.status,
+        headers: ct ? { 'Content-Type': ct } : {},
+      })
+    }
 
-    return new Response(response.body, {
-      status: response.status,
-      headers: responseHeaders,
+    // Wait too long — pass through the 429
+    console.log(`[proxy] all keys 429, wait too long (${waitSec}s), passing through`)
+    const ct = last429!.headers.get('Content-Type')
+    return new Response(last429!.body, {
+      status: 429,
+      headers: ct ? { 'Content-Type': ct } : {},
     })
   } catch (err) {
     console.error(`[proxy] error:`, err)
