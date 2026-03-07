@@ -29,7 +29,11 @@ async function handler(request: NextRequest, { params }: { params: { path: strin
         });
 
         const responseHeaders = new Headers(response.headers);
+        // Remove compression headers: fetch() auto-decompresses, so the body is
+        // already decompressed. Forwarding the original content-length (compressed
+        // size) would cause clients to read a truncated response.
         responseHeaders.delete('content-encoding');
+        responseHeaders.delete('content-length');
         responseHeaders.set('Access-Control-Allow-Origin', '*');
 
         return new Response(response.body, {
