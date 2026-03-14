@@ -4,6 +4,9 @@ export default function Home() {
       <h1>Gemini Proxy</h1>
       <p>Transparent proxy for Google Gemini API.</p>
       <p>Endpoint: <code>POST /v1beta/models/:model:generateContent?key=SECRET</code></p>
+      <p>
+        Bob Mini App preview: <a href="/bob">/bob</a>
+      </p>
     </main>
   )
 }
