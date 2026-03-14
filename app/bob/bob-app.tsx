@@ -67,6 +67,7 @@ export default function BobApp() {
     surface: null,
   });
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [ttsText, setTtsText] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
@@ -145,7 +146,7 @@ export default function BobApp() {
     }));
   }
 
-  function handleAction(action: SurfaceAction) {
+  function handleAction(action: SurfaceAction, extraPayload?: Record<string, string>) {
     if (state.mode === "demo") {
       setState((current) => ({
         ...current,
@@ -158,11 +159,12 @@ export default function BobApp() {
     startTransition(() => {
       void (async () => {
         try {
+          const mergedPayload = { ...(action.payload ?? {}), ...(extraPayload ?? {}) };
           const response = await parseJsonResponse(
             await fetch("/api/bob/actions", {
               body: JSON.stringify({
                 actionId: action.id,
-                payload: action.payload ?? {},
+                payload: mergedPayload,
               }),
               headers: { "content-type": "application/json" },
               method: "POST",
@@ -240,17 +242,42 @@ export default function BobApp() {
                     ) : null}
                     {card.actions?.length ? (
                       <div className="bob-app-actions">
-                        {card.actions.map((action) => (
-                          <button
-                            className="bob-app-action"
-                            disabled={pendingActionId === action.id}
-                            key={`${card.title}-${action.id}`}
-                            onClick={() => handleAction(action)}
-                            type="button"
-                          >
-                            {pendingActionId === action.id ? "Working…" : action.label}
-                          </button>
-                        ))}
+                        {card.actions.map((action) =>
+                          action.id === "ha-polk-say" ? (
+                            <div className="bob-app-tts-row" key={`${card.title}-${action.id}`}>
+                              <input
+                                className="bob-app-tts-input"
+                                disabled={!!pendingActionId}
+                                onChange={(e) => setTtsText(e.target.value)}
+                                placeholder="Текст для Полка…"
+                                type="text"
+                                value={ttsText}
+                              />
+                              <button
+                                className="bob-app-action"
+                                disabled={!ttsText.trim() || !!pendingActionId}
+                                onClick={() => {
+                                  if (!ttsText.trim()) return;
+                                  handleAction(action, { text: ttsText });
+                                  setTtsText("");
+                                }}
+                                type="button"
+                              >
+                                {pendingActionId === action.id ? "Working…" : action.label}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              className="bob-app-action"
+                              disabled={pendingActionId === action.id}
+                              key={`${card.title}-${action.id}`}
+                              onClick={() => handleAction(action)}
+                              type="button"
+                            >
+                              {pendingActionId === action.id ? "Working…" : action.label}
+                            </button>
+                          )
+                        )}
                       </div>
                     ) : null}
                   </article>
