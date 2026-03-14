@@ -24,9 +24,26 @@ export type BobReport = {
   summary: string;
 };
 
+export type BobHaVacuum = {
+  battery: number;
+  state: string;
+};
+
+export type BobHaPolk = {
+  mediaTitle: string | null;
+  state: string;
+  volume: number;
+};
+
+export type BobHa = {
+  polk: BobHaPolk;
+  vacuum: BobHaVacuum;
+};
+
 export type BobSnapshot = {
   alerts: BobAlert[];
   cron: BobCronJob[];
+  ha: BobHa;
   diagnostics: {
     codexBaseUrl: string;
     scriptsPresent: boolean;
