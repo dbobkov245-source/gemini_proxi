@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import type { BobAlert, BobCronJob, BobReport, BobSnapshot } from "./types";
+import type { BobAlert, BobCronJob, BobHa, BobReport, BobSnapshot } from "./types";
 import type { BobUiConfig } from "./config";
 import { loadBobSnapshotFromLocalBridge } from "./local-bridge";
 
@@ -61,6 +61,32 @@ function normalizeReport(input: unknown): BobReport | null {
   };
 }
 
+function normalizeHa(input: unknown): BobHa {
+  const record =
+    input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+
+  const v =
+    record.vacuum && typeof record.vacuum === "object"
+      ? (record.vacuum as Record<string, unknown>)
+      : {};
+  const p =
+    record.polk && typeof record.polk === "object"
+      ? (record.polk as Record<string, unknown>)
+      : {};
+
+  return {
+    vacuum: {
+      battery: typeof v.battery === "number" ? v.battery : 0,
+      state: typeof v.state === "string" ? v.state : "unknown",
+    },
+    polk: {
+      mediaTitle: typeof p.mediaTitle === "string" ? p.mediaTitle : null,
+      state: typeof p.state === "string" ? p.state : "unknown",
+      volume: typeof p.volume === "number" ? p.volume : 0,
+    },
+  };
+}
+
 export function normalizeBobSnapshot(input: unknown): BobSnapshot {
   const record = input && typeof input === "object"
     ? (input as Record<string, unknown>)
@@ -102,6 +128,7 @@ export function normalizeBobSnapshot(input: unknown): BobSnapshot {
   return {
     alerts,
     cron,
+    ha: normalizeHa(record.ha),
     diagnostics: {
       codexBaseUrl:
         typeof diagnostics.codexBaseUrl === "string"
@@ -135,6 +162,10 @@ export const DEMO_BOB_SNAPSHOT: BobSnapshot = normalizeBobSnapshot({
       message: "Demo mode: connect a real snapshot bridge for live data.",
     },
   ],
+  ha: {
+    vacuum: { state: "docked", battery: 87 },
+    polk: { state: "off", volume: 45, mediaTitle: null },
+  },
   cron: [
     { id: "ai-radar", label: "AI Radar", status: "ok" },
     { id: "bob-watch", label: "Bob Watch", status: "ok" },
