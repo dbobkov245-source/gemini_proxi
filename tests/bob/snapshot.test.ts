@@ -54,10 +54,13 @@ test("buildBobSurface renders a mobile-first surface contract", () => {
         version: "2026.3.12",
       },
     }),
+    { availableActions: new Set(["run-model-diagnostics"]) },
   );
 
   assert.equal(surface.kind, "surface");
   assert.equal(surface.layout, "single-column");
   assert.ok(surface.sections.length >= 3);
   assert.equal(surface.sections[0]?.cards[0]?.title, "System");
+  assert.equal(surface.sections[1]?.cards[0]?.actions?.[0]?.id, "run-model-diagnostics");
+  assert.equal(surface.sections[2]?.cards[0]?.actions?.length ?? 0, 0);
 });

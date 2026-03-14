@@ -1,5 +1,6 @@
 import type { BobRisk } from "./types";
 import type { BobUiConfig } from "./config";
+import { runBobLocalAction } from "./local-bridge";
 
 type BobActionDefinition = {
   id: string;
@@ -80,8 +81,33 @@ const ACTIONS: Record<string, BobActionDefinition> = {
   },
 };
 
+const REMOTE_ACTION_IDS = [
+  "pause-cron",
+  "restart-gateway",
+  "resume-cron",
+  "run-cron-now",
+  "run-model-diagnostics",
+  "run-radar",
+];
+
 export function getActionDefinition(actionId: string) {
   return ACTIONS[actionId] ?? null;
+}
+
+export function getAvailableActionIds(config: BobUiConfig, options?: { demoMode?: boolean }) {
+  if (options?.demoMode) {
+    return new Set<string>();
+  }
+
+  if (config.snapshotSource === "local") {
+    return new Set<string>(["run-model-diagnostics"]);
+  }
+
+  if (config.actionBaseUrl) {
+    return new Set<string>(REMOTE_ACTION_IDS);
+  }
+
+  return new Set<string>();
 }
 
 export function validateActionRequest({
@@ -140,6 +166,33 @@ export async function executeBobAction({
       data: { message: "Dashboard refresh requested." },
       ok: true,
       status: 200,
+    };
+  }
+
+  if (config.snapshotSource === "local") {
+    const local = await runBobLocalAction(
+      {
+        containerName: config.localContainerName,
+      },
+      {
+        actionId: validated.action.id,
+        execFile: async (command, args) => {
+          const response = await fetch("data:,");
+          void response;
+          const { execFile } = await import("node:child_process");
+          const { promisify } = await import("node:util");
+          const execFileAsync = promisify(execFile);
+          const result = await execFileAsync(command, args, { encoding: "utf8" });
+          return { stdout: result.stdout };
+        },
+      },
+    );
+
+    return {
+      action: validated.action,
+      data: local.data,
+      ok: local.ok,
+      status: local.status,
     };
   }
 

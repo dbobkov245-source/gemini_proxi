@@ -1,6 +1,23 @@
 import type { BobSnapshot, BobSurface } from "./types";
 
-export function buildBobSurface(snapshot: BobSnapshot): BobSurface {
+type BuildBobSurfaceOptions = {
+  availableActions?: Set<string>;
+};
+
+function maybeActions<T extends { id: string }>(
+  actions: T[],
+  availableActions: Set<string>,
+): T[] | undefined {
+  const filtered = actions.filter((action) => availableActions.has(action.id));
+  return filtered.length > 0 ? filtered : undefined;
+}
+
+export function buildBobSurface(
+  snapshot: BobSnapshot,
+  options: BuildBobSurfaceOptions = {},
+): BobSurface {
+  const availableActions = options.availableActions ?? new Set<string>();
+
   return {
     kind: "surface",
     layout: "single-column",
@@ -22,13 +39,16 @@ export function buildBobSurface(snapshot: BobSnapshot): BobSurface {
       {
         cards: [
           {
-            actions: [
-              {
-                id: "run-model-diagnostics",
-                label: "Run diagnostics",
-                risk: "safe-read",
-              },
-            ],
+            actions: maybeActions(
+              [
+                {
+                  id: "run-model-diagnostics",
+                  label: "Run diagnostics",
+                  risk: "safe-read",
+                },
+              ],
+              availableActions,
+            ),
             rows: [
               { label: "Primary", value: snapshot.models.primary },
               { label: "Compute today", value: snapshot.models.computeToday },
@@ -45,14 +65,17 @@ export function buildBobSurface(snapshot: BobSnapshot): BobSurface {
       },
       {
         cards: snapshot.cron.map((job) => ({
-          actions: [
-            {
-              id: "run-cron-now",
-              label: "Run now",
-              payload: { jobId: job.id },
-              risk: "state-changing",
-            },
-          ],
+          actions: maybeActions(
+            [
+              {
+                id: "run-cron-now",
+                label: "Run now",
+                payload: { jobId: job.id },
+                risk: "state-changing",
+              },
+            ],
+            availableActions,
+          ),
           rows: [{ label: "Status", value: job.status }],
           title: job.label,
         })),

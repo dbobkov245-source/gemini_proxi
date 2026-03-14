@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import type { BobAlert, BobCronJob, BobReport, BobSnapshot } from "./types";
 import type { BobUiConfig } from "./config";
+import { loadBobSnapshotFromLocalBridge } from "./local-bridge";
 
 function normalizeAlert(input: unknown): BobAlert | null {
   if (!input || typeof input !== "object") {
@@ -162,6 +163,16 @@ export const DEMO_BOB_SNAPSHOT: BobSnapshot = normalizeBobSnapshot({
 });
 
 export async function loadBobSnapshot(config: BobUiConfig): Promise<BobSnapshot> {
+  if (config.snapshotSource === "local") {
+    return loadBobSnapshotFromLocalBridge({
+      containerName: config.localContainerName,
+      cronPath: config.localCronPath,
+      healthUrl: config.localHealthUrl,
+      modelsPath: config.localModelsPath,
+      openclawConfigPath: config.localOpenclawConfigPath,
+    });
+  }
+
   if (config.snapshotSource === "file") {
     if (!config.snapshotPath) {
       throw new Error("BOB_UI_SNAPSHOT_PATH is required for file snapshot mode");

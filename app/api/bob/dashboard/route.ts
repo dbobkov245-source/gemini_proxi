@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getAvailableActionIds } from "@/lib/bob/actions";
 import { getBobUiConfig } from "@/lib/bob/config";
 import { loadBobSnapshot } from "@/lib/bob/snapshot";
 import { buildBobSurface } from "@/lib/bob/surfaces";
@@ -44,7 +45,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       mode: demoMode ? "demo" : config.snapshotSource,
-      surface: buildBobSurface(snapshot),
+      surface: buildBobSurface(snapshot, {
+        availableActions: getAvailableActionIds(config, { demoMode }),
+      }),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "snapshot_load_failed";
