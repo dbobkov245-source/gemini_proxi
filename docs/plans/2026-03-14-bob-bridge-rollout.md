@@ -9,11 +9,11 @@ Expose live Bob Mini App data to the public `/bob` page without publishing the p
 - Public Mini App stays in `gemini_proxi`.
 - Bob runtime stays private on the VPS.
 - Bob bridge is mounted inside the OpenClaw gateway at `http://127.0.0.1:18789/__bob__/bridge`.
-- Only the bridge path should be published externally:
-  - `GET /__bob__/bridge/healthz`
-  - `GET /__bob__/bridge/snapshot`
-  - `GET /__bob__/bridge/capabilities`
-  - `POST /__bob__/bridge/actions/:id`
+- The current Funnel shape publishes the bridge root directly:
+  - public `GET /healthz` -> internal `GET /__bob__/bridge/healthz`
+  - public `GET /snapshot` -> internal `GET /__bob__/bridge/snapshot`
+  - public `GET /capabilities` -> internal `GET /__bob__/bridge/capabilities`
+  - public `POST /actions/:id` -> internal `POST /__bob__/bridge/actions/:id`
 
 ## Security Rules
 
@@ -48,11 +48,17 @@ curl -sS -H "Authorization: Bearer ..." \
 
 ```bash
 BOB_UI_SNAPSHOT_SOURCE=url
-BOB_UI_SNAPSHOT_URL=https://<public-host>/__bob__/bridge/snapshot
+BOB_UI_SNAPSHOT_URL=https://<public-host>/snapshot
 BOB_UI_SNAPSHOT_BEARER_TOKEN=replace-with-strong-secret
-BOB_UI_ACTION_BASE_URL=https://<public-host>/__bob__/bridge/actions
+BOB_UI_ACTION_BASE_URL=https://<public-host>/actions
 BOB_UI_ACTION_BEARER_TOKEN=replace-with-strong-secret
 BOB_UI_ACTION_IDS=run-model-diagnostics
+```
+
+## Funnel Command
+
+```bash
+tailscale funnel --bg --yes http://127.0.0.1:18789/__bob__/bridge
 ```
 
 ## Smoke Checklist
@@ -60,5 +66,8 @@ BOB_UI_ACTION_IDS=run-model-diagnostics
 1. `curl -sS http://127.0.0.1:18789/__bob__/bridge/healthz`
 2. `curl -sS -H "Authorization: Bearer ..."` `http://127.0.0.1:18789/__bob__/bridge/capabilities`
 3. `curl -sS -H "Authorization: Bearer ..."` `http://127.0.0.1:18789/__bob__/bridge/snapshot`
-4. Open `/bob?demo=1` for UI sanity.
-5. Open `/bob` from Telegram Mini App after setting live envs.
+4. `curl -sS https://<public-host>/healthz`
+5. `curl -sS -H "Authorization: Bearer ..."` `https://<public-host>/capabilities`
+6. `curl -sS -H "Authorization: Bearer ..."` `https://<public-host>/snapshot`
+7. Open `/bob?demo=1` for UI sanity.
+8. Open `/bob` from Telegram Mini App after setting live envs.
