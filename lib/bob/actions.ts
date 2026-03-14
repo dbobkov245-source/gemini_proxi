@@ -1,6 +1,6 @@
 import type { BobRisk } from "./types";
 import type { BobUiConfig } from "./config";
-import { runBobLocalAction } from "./local-bridge";
+import { LOCAL_BOB_ACTION_IDS, runBobLocalAction } from "./local-bridge";
 
 type BobActionDefinition = {
   id: string;
@@ -77,18 +77,11 @@ const ACTIONS: Record<string, BobActionDefinition> = {
     id: "run-radar",
     label: "Run radar",
     payloadShape: "none",
-    risk: "safe-read",
+    risk: "state-changing",
   },
 };
 
-const REMOTE_ACTION_IDS = [
-  "pause-cron",
-  "restart-gateway",
-  "resume-cron",
-  "run-cron-now",
-  "run-model-diagnostics",
-  "run-radar",
-];
+export const DEFAULT_REMOTE_ACTION_IDS = ["run-model-diagnostics"];
 
 export function getActionDefinition(actionId: string) {
   return ACTIONS[actionId] ?? null;
@@ -100,11 +93,15 @@ export function getAvailableActionIds(config: BobUiConfig, options?: { demoMode?
   }
 
   if (config.snapshotSource === "local") {
-    return new Set<string>(["run-model-diagnostics"]);
+    return new Set<string>(LOCAL_BOB_ACTION_IDS);
   }
 
   if (config.actionBaseUrl) {
-    return new Set<string>(REMOTE_ACTION_IDS);
+    const configured =
+      config.actionIds.length > 0 ? config.actionIds : DEFAULT_REMOTE_ACTION_IDS;
+    return new Set<string>(
+      configured.filter((actionId) => getActionDefinition(actionId) !== null),
+    );
   }
 
   return new Set<string>();

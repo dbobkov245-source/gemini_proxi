@@ -5,9 +5,11 @@ import { readFile as nodeReadFile } from "node:fs/promises";
 import { normalizeBobSnapshot } from "./snapshot";
 import type { BobSnapshot } from "./types";
 
+export const LOCAL_BOB_ACTION_IDS = ["run-model-diagnostics"];
+
 const execFileAsync = promisify(nodeExecFile);
 
-type LocalBridgeConfig = {
+export type LocalBridgeConfig = {
   containerName: string;
   cronPath: string;
   healthUrl: string;
@@ -30,7 +32,7 @@ type LocalActionDeps = {
   execFile: (command: string, args: string[]) => Promise<ExecResult>;
 };
 
-type LocalActionConfig = {
+export type LocalActionConfig = {
   containerName: string;
 };
 
@@ -186,7 +188,7 @@ export async function runBobLocalAction(
   config: LocalActionConfig,
   deps: LocalActionDeps & { actionId: string },
 ) {
-  if (deps.actionId !== "run-model-diagnostics") {
+  if (!LOCAL_BOB_ACTION_IDS.includes(deps.actionId)) {
     return {
       data: { error: "action_not_supported_locally" },
       ok: false,
