@@ -189,7 +189,7 @@ export const DEMO_BOB_SNAPSHOT: BobSnapshot = normalizeBobSnapshot({
   ],
   system: {
     health: "healthy",
-    version: "2026.3.12",
+    version: "2026.3.13",
   },
 });
 
