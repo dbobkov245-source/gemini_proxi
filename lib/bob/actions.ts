@@ -5,7 +5,7 @@ import { LOCAL_BOB_ACTION_IDS, runBobLocalAction } from "./local-bridge";
 type BobActionDefinition = {
   id: string;
   label: string;
-  payloadShape: "none" | "job";
+  payloadShape: "none" | "job" | "text";
   risk: BobRisk;
 };
 
@@ -37,6 +37,42 @@ type ExecuteBobActionResult = {
 };
 
 const ACTIONS: Record<string, BobActionDefinition> = {
+  "ha-polk-say": {
+    id: "ha-polk-say",
+    label: "Say via Polk",
+    payloadShape: "text",
+    risk: "state-changing",
+  },
+  "ha-polk-volume-down": {
+    id: "ha-polk-volume-down",
+    label: "Volume −10",
+    payloadShape: "none",
+    risk: "state-changing",
+  },
+  "ha-polk-volume-up": {
+    id: "ha-polk-volume-up",
+    label: "Volume +10",
+    payloadShape: "none",
+    risk: "state-changing",
+  },
+  "ha-vacuum-dock": {
+    id: "ha-vacuum-dock",
+    label: "Dock",
+    payloadShape: "none",
+    risk: "state-changing",
+  },
+  "ha-vacuum-start": {
+    id: "ha-vacuum-start",
+    label: "Start",
+    payloadShape: "none",
+    risk: "state-changing",
+  },
+  "ha-vacuum-stop": {
+    id: "ha-vacuum-stop",
+    label: "Stop",
+    payloadShape: "none",
+    risk: "state-changing",
+  },
   "pause-cron": {
     id: "pause-cron",
     label: "Pause cron",
@@ -121,6 +157,18 @@ export function validateActionRequest({
       action,
       ok: true,
       payload: {},
+    };
+  }
+
+  if (action.payloadShape === "text") {
+    const text = payload.text;
+    if (typeof text !== "string" || text.trim().length === 0) {
+      return { ok: false, reason: "invalid_payload" };
+    }
+    return {
+      action,
+      ok: true,
+      payload: { text: text.trim() },
     };
   }
 

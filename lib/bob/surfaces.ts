@@ -64,6 +64,46 @@ export function buildBobSurface(
         title: "Models",
       },
       {
+        cards: [
+          {
+            actions: maybeActions(
+              [
+                { id: "ha-vacuum-start", label: "▶ Start", risk: "state-changing" as const },
+                { id: "ha-vacuum-stop",  label: "⏹ Stop",  risk: "state-changing" as const },
+                { id: "ha-vacuum-dock",  label: "🏠 Dock",  risk: "state-changing" as const },
+              ],
+              availableActions,
+            ),
+            rows: [
+              { label: "State",   value: snapshot.ha.vacuum.state },
+              { label: "Battery", value: `${snapshot.ha.vacuum.battery}%` },
+            ],
+            title: "Shustrik",
+            tone: snapshot.ha.vacuum.state === "error" ? "warning" : undefined,
+          },
+          {
+            actions: maybeActions(
+              [
+                { id: "ha-polk-say",         label: "🔊 Say",  risk: "state-changing" as const },
+                { id: "ha-polk-volume-down", label: "🔉 −10",  risk: "state-changing" as const },
+                { id: "ha-polk-volume-up",   label: "🔊 +10",  risk: "state-changing" as const },
+              ],
+              availableActions,
+            ),
+            rows: [
+              { label: "State",  value: snapshot.ha.polk.state },
+              { label: "Volume", value: `${snapshot.ha.polk.volume}%` },
+              ...(snapshot.ha.polk.mediaTitle
+                ? [{ label: "Playing", value: snapshot.ha.polk.mediaTitle }]
+                : []),
+            ],
+            title: "Polk",
+          },
+        ],
+        id: "home",
+        title: "Home",
+      },
+      {
         cards: snapshot.cron.map((job) => ({
           actions: maybeActions(
             [
