@@ -31,6 +31,12 @@
   margin-bottom: 10px;
 }
 
+.bob-app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .bob-app-kicker {
   margin: 0 0 4px;
   color: var(--bob-copy-soft);
@@ -69,6 +75,46 @@
 
 .bob-app-mode-demo,
 .bob-app-tone-warning {
+  color: var(--bob-warm);
+}
+
+.bob-app-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--bob-line);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--bob-copy-soft);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bob-app-refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.bob-app-refresh--spinning {
+  animation: bob-spin 0.8s linear infinite;
+}
+
+@keyframes bob-spin {
+  to { transform: rotate(360deg); }
+}
+
+.bob-app-age {
+  margin: 0 0 10px;
+  font-family: "SF Pro Text", "Segoe UI", sans-serif;
+  font-size: 12px;
+  color: var(--bob-copy-soft);
+}
+
+.bob-app-age--stale {
   color: var(--bob-warm);
 }
 

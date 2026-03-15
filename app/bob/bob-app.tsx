@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 
 import "./bob-app.css";
 
@@ -68,6 +68,19 @@ export default function BobApp() {
   });
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [ttsText, setTtsText] = useState<string>("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [ageSeconds, setAgeSeconds] = useState<number | null>(null);
+  const lastLoadedAtRef = useRef<number | null>(null);
+
+  // Age ticker — updates every 5 s so "Updated Xs ago" stays fresh
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (lastLoadedAtRef.current) {
+        setAgeSeconds(Math.floor((Date.now() - lastLoadedAtRef.current) / 1000));
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +105,8 @@ export default function BobApp() {
           );
 
           if (!cancelled) {
+            lastLoadedAtRef.current = Date.now();
+            setAgeSeconds(0);
             setState({
               error: null,
               mode: "live",
@@ -107,6 +122,8 @@ export default function BobApp() {
         );
 
         if (!cancelled) {
+          lastLoadedAtRef.current = Date.now();
+          setAgeSeconds(0);
           setState({
             error: null,
             mode: "demo",
@@ -139,12 +156,36 @@ export default function BobApp() {
     const dashboard = await parseJsonResponse(
       await fetch(url, { cache: "no-store" }),
     );
+    lastLoadedAtRef.current = Date.now();
+    setAgeSeconds(0);
     setState((current) => ({
       ...current,
       error: null,
       surface: dashboard.surface,
     }));
   }
+
+  async function handleRefresh() {
+    if (isRefreshing || state.mode === "boot") return;
+    setIsRefreshing(true);
+    try {
+      await refreshDashboard();
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : "Refresh failed",
+      }));
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
+  function formatAge(seconds: number): string {
+    if (seconds < 60) return `${seconds}s ago`;
+    return `${Math.floor(seconds / 60)}m ago`;
+  }
+
+  const isStale = ageSeconds !== null && ageSeconds >= 180;
 
   function handleAction(action: SurfaceAction, extraPayload?: Record<string, string>) {
     if (state.mode === "demo") {
@@ -200,10 +241,31 @@ export default function BobApp() {
           <p className="bob-app-kicker">Bob Mini App</p>
           <h1>Bob Ops</h1>
         </div>
-        <span className={`bob-app-mode bob-app-mode-${state.mode}`}>
-          {state.mode}
-        </span>
+        <div className="bob-app-header-right">
+          <span className={`bob-app-mode bob-app-mode-${state.mode}`}>
+            {state.mode}
+          </span>
+          {state.surface ? (
+            <button
+              aria-label="Refresh"
+              className={`bob-app-refresh${isRefreshing ? " bob-app-refresh--spinning" : ""}`}
+              disabled={isRefreshing}
+              onClick={handleRefresh}
+              type="button"
+            >
+              ↻
+            </button>
+          ) : null}
+        </div>
       </section>
+
+      {ageSeconds !== null ? (
+        <p className={`bob-app-age${isStale ? " bob-app-age--stale" : ""}`}>
+          {isStale
+            ? `⚠ Данные устарели — обновлено ${formatAge(ageSeconds)}`
+            : `Обновлено ${formatAge(ageSeconds)}`}
+        </p>
+      ) : null}
 
       {state.note ? <p className="bob-app-note">{state.note}</p> : null}
       {state.error ? <p className="bob-app-error">{state.error}</p> : null}
