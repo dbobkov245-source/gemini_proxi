@@ -16,10 +16,16 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        // sessionCookie may be a full Cookie header value (e.g. split .0/.1 tokens)
+        // or a bare token value (legacy single-part sessions).
+        const cookieHeader = sessionCookie.startsWith('__Secure-next-auth')
+            ? sessionCookie
+            : `__Secure-next-auth.session-token=${sessionCookie}`
+
         const response = await fetch('https://chatgpt.com/api/auth/session', {
             method: 'GET',
             headers: {
-                'Cookie': `__Secure-next-auth.session-token=${sessionCookie}`,
+                'Cookie': cookieHeader,
                 'Accept': 'application/json',
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': 'https://chatgpt.com/',
