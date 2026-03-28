@@ -1,4 +1,13 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+
 .bob-app-shell {
+  max-width: 100vw;
   --bob-bg: #f6f1e8;
   --bob-card: rgba(255, 252, 247, 0.94);
   --bob-copy: #13222e;
