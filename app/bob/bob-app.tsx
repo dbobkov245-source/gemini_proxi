@@ -31,7 +31,7 @@ type Surface = {
 };
 
 type AppState = {
-  debug: string | null;
+  debug?: string | null;
   error: string | null;
   mode: "boot" | "demo" | "live";
   note: string | null;
