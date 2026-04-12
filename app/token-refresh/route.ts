@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             accessToken: data.accessToken,
-            accountId: data.user?.id ?? null,
+            accountId: data.account?.id ?? data.user?.id ?? null,
         })
 
     } catch (err: any) {
