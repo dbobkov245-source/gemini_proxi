@@ -31,6 +31,7 @@ type Surface = {
 };
 
 type AppState = {
+  debug: string | null;
   error: string | null;
   mode: "boot" | "demo" | "live";
   note: string | null;
@@ -61,6 +62,7 @@ async function parseJsonResponse(response: Response) {
 
 export default function BobApp() {
   const [state, setState] = useState<AppState>({
+    debug: null,
     error: null,
     mode: "boot",
     note: "Opening Bob panel…",
@@ -86,7 +88,19 @@ export default function BobApp() {
     let cancelled = false;
 
     async function boot() {
+      // DEBUG: log Telegram WebApp state for diagnosing demo mode on Android
+      const tg = window.Telegram;
+      const webAppObj = tg?.WebApp;
+      console.log("[bob-debug] window.Telegram defined:", !!tg);
+      console.log("[bob-debug] window.Telegram.WebApp defined:", !!webAppObj);
+      console.log("[bob-debug] initData length:", webAppObj?.initData?.length ?? "n/a");
+      console.log("[bob-debug] initData preview:", webAppObj?.initData?.slice(0, 80) ?? "(empty)");
+      console.log("[bob-debug] version:", webAppObj?.version ?? "n/a");
+
       const webApp = window.Telegram?.WebApp;
+      const debugInfo = `tg:${!!window.Telegram} wa:${!!webApp} id_len:${webApp?.initData?.length ?? "?"} ver:${webApp?.version ?? "?"}`;
+      if (!cancelled) setState((s) => ({ ...s, debug: debugInfo }));
+
       webApp?.ready?.();
       webApp?.expand?.();
 
@@ -268,6 +282,7 @@ export default function BobApp() {
       ) : null}
 
       {state.note ? <p className="bob-app-note">{state.note}</p> : null}
+      {state.debug ? <p className="bob-app-note" style={{fontSize:"11px",fontFamily:"monospace",wordBreak:"break-all"}}>{state.debug}</p> : null}
       {state.error ? <p className="bob-app-error">{state.error}</p> : null}
 
       {!state.surface ? (
