@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   const auth = validateTelegramInitData({
     allowedUserIds: config.allowedUserIds,
     botToken: config.botToken,
-    maxAgeSeconds: config.sessionTtlSeconds,
+    maxAgeSeconds: config.initDataMaxAgeSeconds,
     nowMs: Date.now(),
     rawInitData: initData,
   });

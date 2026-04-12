@@ -4,6 +4,7 @@ export type BobUiConfig = {
   actionIds: string[];
   allowedUserIds: string[];
   botToken: string | null;
+  initDataMaxAgeSeconds: number;
   localContainerName: string;
   localCronPath: string;
   localHealthUrl: string;
@@ -73,6 +74,7 @@ export function getBobUiConfig(env: NodeJS.ProcessEnv = process.env): BobUiConfi
     localOpenclawConfigPath:
       env.BOB_UI_LOCAL_OPENCLAW_CONFIG_PATH?.trim() ||
       "/home/devops/.openclaw/openclaw.json",
+    initDataMaxAgeSeconds: parsePositiveInt(env.BOB_UI_INIT_DATA_MAX_AGE_SECONDS, 86400),
     sessionSecret: env.BOB_UI_SESSION_SECRET?.trim() || null,
     sessionTtlSeconds: parsePositiveInt(env.BOB_UI_SESSION_TTL_SECONDS, 900),
     snapshotBearerToken: env.BOB_UI_SNAPSHOT_BEARER_TOKEN?.trim() || null,
