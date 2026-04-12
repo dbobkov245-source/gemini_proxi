@@ -42,6 +42,7 @@ type TelegramWebApp = {
   expand?: () => void;
   initData?: string;
   ready?: () => void;
+  version?: string;
 };
 
 declare global {
