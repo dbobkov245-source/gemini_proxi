@@ -6,3 +6,7 @@ node_modules/
 
 # Ignore documentation
 docs/
+
+# Local junk and pulled Vercel env dumps (secrets)
+.DS_Store
+.env*.txt
